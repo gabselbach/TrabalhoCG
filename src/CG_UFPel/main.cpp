@@ -1,6 +1,7 @@
+// Domarys Correa (28/05/19)
+// Fa√ßa os dois modelos (nanosuit e cyborg) pularem um por cima do outro at√© o infinito. Cada pulo deve durar 2 segundos.
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -11,7 +12,10 @@
 #include <learnopengl/model.h>
 
 #include <iostream>
-#include <glm/gtx/spline.hpp>
+#include <irrklang/irrKlang.h>
+using namespace irrklang;
+ISoundEngine *SoundEngine = createIrrKlangDevice();
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -22,7 +26,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 1.5f, 10.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -30,279 +34,175 @@ bool firstMouse = true;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-float firstTime = 0.0f;
-float distancia = 0.2f;
-float temp = 2.00f;
-float x = 0.0f;
+
+float positionx1 = 0.0f, positionx2 = 0.0f,deltaT =0.0f;
+int modelCurrent = 5;
+bool animacao = false;
 
 int main()
 {
-	// glfw: initialize and configure
-	// ------------------------------
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    
+    // glfw: initialize and configure
+    // ------------------------------
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 #ifdef __APPLE__
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
 #endif
 
-	// glfw window creation
-	// --------------------
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
-	if (window == NULL)
-	{
-		std::cout << "Failed to create GLFW window" << std::endl;
-		glfwTerminate();
-		return -1;
-	}
-	glfwMakeContextCurrent(window);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	glfwSetCursorPosCallback(window, mouse_callback);
-	glfwSetScrollCallback(window, scroll_callback);
+    // glfw window creation
+    // --------------------
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    if (window == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
-	// tell GLFW to capture our mouse
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // tell GLFW to capture our mouse
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	// glad: load all OpenGL function pointers
-	// ---------------------------------------
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		std::cout << "Failed to initialize GLAD" << std::endl;
-		return -1;
-	}
+    // glad: load all OpenGL function pointers
+    // ---------------------------------------
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
 
-	// configure global opengl state
-	// -----------------------------
-	glEnable(GL_DEPTH_TEST);
+    // configure global opengl state
+    // -----------------------------
+    glEnable(GL_DEPTH_TEST);
 
-	// build and compile shaders
-	// -------------------------
-	Shader ourShader(FileSystem::getPath("resources/cg_ufpel.vs").c_str(), FileSystem::getPath("resources/cg_ufpel.fs").c_str());
+    // build and compile shaders
+    // -------------------------
+    Shader ourShader(FileSystem::getPath("resources/cg_ufpel.vs").c_str(), FileSystem::getPath("resources/cg_ufpel.fs").c_str());
 
-	// load models
-	// -----------
-	Model ourModel(FileSystem::getPath("resources/objects/nanosuit/nanosuit.obj"));
+    // load models
+    // -----------
+    Model ourModel1(FileSystem::getPath("resources/objects/nanosuit/nanosuit.obj"));
+   //Model ourModel2(FileSystem::getPath("resources/objects/mo/head.obj"));
+    // draw in wireframe
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    float firstTime =0.0f;
+    // render loop
+    // "../../media/getout.ogg", true
+    // -----------
+     SoundEngine->play2D("../../media/ophelia.mp3", GL_TRUE);
+    while (!glfwWindowShouldClose(window))
+    {
+       
+        
+        // per-frame time logic
+        
+        // --------------------
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+        // input
+        // -----
+        processInput(window);
 
+        // render
+        // ------
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// render loop
-		// -----------
-	glm::vec3 pinicial = glm::vec3(0.0f, -1.00f, 0.0f);
-	glm::vec3 escalainicial = glm::vec3(0.1f, 0.1f, 0.1f);
-	glm::vec3 pfinal = pinicial;
-	glm::vec3 patual = pinicial;
-	glm::vec3 pontorotacao;
+        // don't forget to enable shader before setting uniforms
+        ourShader.use();
 
-	glm::mat4 model;
+        // view/projection transformations
+        //inicializa√ß√£o
+        glm::mat4 model1, model2; 
+        model1 = glm::translate(model1, glm::vec3(0.0f, 0.0f, 0.0f)); 
+        model1 = glm::scale(model1, glm::vec3(0.2f, 0.2f, 0.2f));  
+    
+        model2 = glm::translate(model2, glm::vec3(3.0f,0.0f, 0.0f)); 
+        model2 = glm::scale(model2, glm::vec3(0.5f, 0.5f, 0.5f));  
+        //come√ßou a anima√ßao
+       
+     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        ourShader.setMat4("projection", projection);
+        ourShader.setMat4("view", view);
 
-	model = glm::translate(model, pinicial); // translate it down so it's at the center of the scene
-	model = glm::scale(model, escalainicial);
-	float pontoinicial = 0.0f;
-	double delta = 0;
-	glm::vec3 p;
-	double atualTime=0.0;
-	double firstTime =0.0;
-	float valor =0.0f;
-	double current_t = 0.0;
-	bool playAnimation = false;
-	const double lapse = 5.0; //tempo da animaÁ„o: 5 segundos
-	glm::vec3 position; //posiÁ„o atual
+        
+      
+            ourShader.setMat4("model", model1);
+        ourModel1.Draw(ourShader);
+        //ourShader.setMat4("model", model2);
+        //ourModel2.Draw(ourShader);
 
-	//par‚metros da curva
-	glm::vec3 	pA = pinicial,
-				pB = glm::vec3(-0.9f, -1.00f, 0.0f),
-				pC = glm::vec3(0.0f, -1.00f, 0.2f),
-				pD = glm::vec3(0.5f, -1.00f, 0.6f);
-	float s = 0.0f; //par‚metro da curva an·logo ao t da reta
-	double delta_t = 0.0;
-	double first_t = 0.0; //tempo inicial
-	while (!glfwWindowShouldClose(window))
-	{
-		delta = 0;
-		if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
-		{
-			playAnimation = true;
-			position = pinicial;
-			first_t = glfwGetTime();
-		}
-		if(playAnimation)
-		{
-			if(delta_t < lapse)
-			{
-				delta_t += glfwGetTime() - first_t;
-				s = lapse / delta_t;
-				position = glm::catmullRom(pA, pB, pC, pD, s) - position;
-				model = glm::translate(model, position);
-			}
-			else
-			{
-				s = 0.0f;
-				delta_t = 0.0;
-				current_t = 0.0;
-				playAnimation = false;
-			}
-		}
-		//wireframe
-		if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+         glfwSwapBuffers(window);
+        glfwPollEvents();
+        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        // -------------------------------------------------------------------------------
+        
+    }
 
-		//AnimaÁ„o para esquerda em funÁ„o do tempo
-		if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
-			delta = 0;
-		 	firstTime= glfwGetTime();
-			while (delta < 3) {
-				if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
-					break;
-				 atualTime = glfwGetTime();
-				delta = atualTime - firstTime;
-				if (delta != 0) {
-					patual.x = (float)((0.1*delta) / 2);
-					patual.y = 0.0f;
-					patual.z = 0.0f;
-					model = glm::translate(model, patual);
-					ourShader.setMat4("model", model);
-					ourModel.Draw(ourShader);
-					
-					glfwSwapBuffers(window);
-					glfwPollEvents();
-				}
-				
-				glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			}
-		}
-		// rotacao por eixo colocar 1 no eixo quer quer girars
-		if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) 
-			model = glm::rotate(model, glm::radians(1.0f),  glm::vec3(0.0f, 0.f, 1.0f));
-		delta = 0;
-		// AnimaÁ„o de rotaÁ„o em funÁ„o do tempo
-		if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
-			double firstTime = glfwGetTime();
-			while (delta < 10) {
-				if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS)
-					break;
-				double atualTime = glfwGetTime();
-				delta = atualTime - firstTime;
-				if (delta != 0) {
-					valor = ((1*delta) / 2);
-					model = glm::rotate(model, glm::radians(valor), patual);
-					ourShader.setMat4("model", model);
-					ourModel.Draw(ourShader);
-
-					glfwSwapBuffers(window);
-					glfwPollEvents();
-				}
-
-				glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			}
-
-		}
-		
-		// angulo da camera
-
-		std::cout << "angulo" << std::endl;
-		glm::vec3 direct = glm::normalize(camera.Position - patual);
-		std::cout << direct.x <<""<< direct.z << std::endl;
-
-		// per-frame time logic
-		// --------------------
-		float currentFrame = glfwGetTime();
-		deltaTime = currentFrame - lastFrame;
-		lastFrame = currentFrame;
-
-		// input
-		// -----
-		processInput(window);
-
-		// render
-		// ------
-		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// don't forget to enable shader before setting uniforms
-		ourShader.use();
-
-		// view/projection transformations
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-		glm::mat4 view = camera.GetViewMatrix();
-		ourShader.setMat4("projection", projection);
-		ourShader.setMat4("view", view);
-
-		if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
-			model = glm::translate(model, glm::vec3(0.50f, 0.00f, 0.0f));
-		if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
-			model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, -1.00f, 0.0f));
-		ourShader.setMat4("model", model);
-		ourModel.Draw(ourShader);
-		
-		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-		// -------------------------------------------------------------------------------
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-	}
-
-	// glfw: terminate, clearing all previously allocated GLFW resources.
-	// ------------------------------------------------------------------
-	glfwTerminate();
-	return 0;
+    // glfw: terminate, clearing all previously allocated GLFW resources.
+    // ------------------------------------------------------------------
+    glfwTerminate();
+    return 0;
 }
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
 
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.ProcessKeyboard(FORWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.ProcessKeyboard(BACKWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.ProcessKeyboard(LEFT, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.ProcessKeyboard(RIGHT, deltaTime);
-
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	// make sure the viewport matches the new window dimensions; note that width and 
-	// height will be significantly larger than specified on retina displays.
-	glViewport(0, 0, width, height);
+    // make sure the viewport matches the new window dimensions; note that width and 
+    // height will be significantly larger than specified on retina displays.
+    glViewport(0, 0, width, height);
 }
 
 // glfw: whenever the mouse moves, this callback is called
 // -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	if (firstMouse)
-	{
-		lastX = xpos;
-		lastY = ypos;
-		firstMouse = false;
-	}
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
 
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-	lastX = xpos;
-	lastY = ypos;
+    lastX = xpos;
+    lastY = ypos;
 
-	camera.ProcessMouseMovement(xoffset, yoffset);
+    camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	camera.ProcessMouseScroll(yoffset);
+    camera.ProcessMouseScroll(yoffset);
 }
